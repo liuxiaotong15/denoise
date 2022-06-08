@@ -27,6 +27,7 @@ special_path = 'init_randomly_EGPHS_EPHS_EHS_EH_E' ### not whole tree, only one 
 last_commit_id = 'none'
 old_model_name = '{0}_{1}_{2}_{3}.hdf5'.format(last_commit_id, GPU_device, seed, cut_value)
 items = ['gllb-sc', 'pbe', 'scan', 'hse']
+fidelity_state_dict = {'gllb-sc': 4, 'pbe': 3, 'scan': 2, 'hse': 1}
 random.seed(seed)
 np.random.seed(seed)
 tf.random.set_seed(GPU_seed)
@@ -71,7 +72,7 @@ for it in items:
     for i in r:
         tmp = Structure.from_str(df[it+'_structure'][i], fmt='cif')
         tmp.remove_oxidation_states()
-        tmp.state=[0]
+        tmp.state=[fidelity_state_dict[it]]
         structures[it].append(tmp)
         targets[it].append(df[it+'_gap'][i])
 ## load DFT data finished ##
