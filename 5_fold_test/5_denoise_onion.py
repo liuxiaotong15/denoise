@@ -17,7 +17,7 @@ seed = 123
 GPU_seed = 11111
 
 ################### need to modified before running #############
-GPU_device = "1"
+GPU_device = "0"
 load_old_model_enable = False
 cut_value = 0.3
 #################################################################
@@ -25,9 +25,15 @@ cut_value = 0.3
 special_path = 'init_randomly_EGPHS_EPHS_EHS_EH_E' ### not whole tree, only one path.
 
 last_commit_id = 'none'
-old_model_name = '{0}_{1}_{2}_{3}.hdf5'.format(last_commit_id, GPU_device, seed, cut_value)
+
+cur_fold_num = 0
+old_model_name = ["4b9de3b_0_123_0.3fold0_init_randomly_EGPHS_EPHS_EHS_EH_E.hdf5",
+        "4b9de3b_0_123_0.3fold0fold1_init_randomly_EGPHS_EPHS_EHS_EH_E.hdf5",
+        "4b9de3b_0_123_0.3fold0fold1fold2_init_randomly_EGPHS_EPHS_EHS_EH_E.hdf5",
+        "4b9de3b_0_123_0.3fold0fold1fold2fold3_init_randomly_EGPHS_EPHS_EHS_EH_E.hdf5",
+        "4b9de3b_0_123_0.3fold0fold1fold2fold3fold4_init_randomly_EGPHS_EPHS_EHS_EH_E.hdf5"]
+
 items = ['gllb-sc', 'pbe', 'scan', 'hse']
-fidelity_state_dict = {'gllb-sc': 4, 'pbe': 3, 'scan': 2, 'hse': 1}
 random.seed(seed)
 np.random.seed(seed)
 tf.random.set_seed(GPU_seed)
@@ -72,31 +78,10 @@ for it in items:
     for i in r:
         tmp = Structure.from_str(df[it+'_structure'][i], fmt='cif')
         tmp.remove_oxidation_states()
-        tmp.state=[fidelity_state_dict[it]]
+        tmp.state=[0]
         structures[it].append(tmp)
         targets[it].append(df[it+'_gap'][i])
 ## load DFT data finished ##
-
-# data preprocess part
-if load_old_model_enable:
-    import pickle
-    # load the past if needed
-    model = MEGNetModel.from_file(old_model_name)
-    for it in items:
-        error_lst = []
-        prediction_lst = []
-        targets_lst = []
-        for i in range(len(structures[it])):
-            prdc = model.predict_structure(structures[it][i]).ravel()
-            tgt = targets[it][i]
-            prediction_lst.append(prdc)
-            targets_lst.append(tgt)
-            e = (prdc - tgt)
-            error_lst.append(e)
-            if abs(e) > cut_value:
-                targets[it][i] = prdc
-# data preprocess finished
-
 ### load disorder data ####
 data_path = 'disordered.json'
 with open(data_path,'r') as fp:
@@ -108,6 +93,19 @@ for i in range(len(s_exp_disordered)):
     s_exp_disordered[i].remove_oxidation_states()
     s_exp_disordered[i].state=[0]
 ### load disorder data ####
+
+
+def data_denoise(s, t):
+    denoiser_model = MEGNetModel.from_file(old_model_name[cur_fold_num])
+    for i in range(len(s)):
+        prdc = model.predict_structure(s[i]).ravel()
+        tgt = t[i]
+        e = (prdc - tgt)
+        if abs(e) > cut_value:
+            t[i] = prdc
+    return s, t
+
+
 
 def prediction(model, structures, targets):
     MAE = 0
@@ -147,6 +145,8 @@ def construct_dataset_from_str(db_short_str):
     for i in range(len(db_short_str)):
         s.extend(structures[db_short_full_dict[db_short_str[i]]])
         t.extend(targets[db_short_full_dict[db_short_str[i]]])
+
+    s, t = data_denoise(s, t)
     c = list(zip(s, t))
     random.shuffle(c)
     s, t = zip(*c)
@@ -198,8 +198,9 @@ def find_sub_tree(cur_tag, history_tag):
 
 
 def main():
-    global dump_model_name, structures, targets, test_structures, test_targets
+    global dump_model_name, structures, targets, test_structures, test_targets, cur_fold_num
     for i in range(5):
+        cur_fold_num = i
         logging.info('Fold-{0} start'.format(i))
         model = MEGNetModel(nfeat_edge=100, nfeat_node=16, ngvocal=1, global_embedding_dim=16, graph_converter=CrystalGraphDisordered(bond_converter=GaussianDistance(np.linspace(0, 5, 100), 0.5)))
         

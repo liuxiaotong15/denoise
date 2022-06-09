@@ -1,4 +1,8 @@
+data
+5_fold_test/5_fold_venv
 .*~
+*.hdf5
+*.json
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
