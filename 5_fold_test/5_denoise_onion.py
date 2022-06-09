@@ -98,7 +98,7 @@ for i in range(len(s_exp_disordered)):
 def data_denoise(s, t):
     denoiser_model = MEGNetModel.from_file(old_model_name[cur_fold_num])
     for i in range(len(s)):
-        prdc = model.predict_structure(s[i]).ravel()
+        prdc = denoiser_model.predict_structure(s[i]).ravel()
         tgt = t[i]
         e = (prdc - tgt)
         if abs(e) > cut_value:
