@@ -17,9 +17,8 @@ seed = 123
 GPU_seed = 11111
 
 ################### need to modified before running #############
-GPU_device = "0"
-load_old_model_enable = False
-cut_value = 0.3
+GPU_device = "1"
+cut_value = 0.5
 #################################################################
 
 special_path = 'init_randomly_EGPHS_EPHS_EHS_EH_E' ### not whole tree, only one path.
@@ -107,11 +106,11 @@ def data_denoise(s, t):
 
 
 
-def prediction(model, structures, targets):
+def prediction(model, structures_input, targets):
     MAE = 0
-    test_size = len(structures)
+    test_size = len(structures_input)
     for i in range(test_size):
-        model_output = model.predict_structure(structures[i]).ravel()
+        model_output = model.predict_structure(structures_input[i]).ravel()
         err = abs(model_output - targets[i])
         MAE += err
     MAE /= test_size
@@ -143,10 +142,16 @@ def construct_dataset_from_str(db_short_str):
     s = []
     t = []
     for i in range(len(db_short_str)):
-        s.extend(structures[db_short_full_dict[db_short_str[i]]])
-        t.extend(targets[db_short_full_dict[db_short_str[i]]])
-
+        idx_str = db_short_full_dict[db_short_str[i]]
+        if idx_str != 'E1':
+            s.extend(structures[idx_str])
+            t.extend(targets[idx_str])
     s, t = data_denoise(s, t)
+    
+    # if 'E' in db_short_str: # this must be true in current case
+    s.extend(structures['E1'])
+    t.extend(targets['E1'])
+
     c = list(zip(s, t))
     random.shuffle(c)
     s, t = zip(*c)
